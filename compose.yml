@@ -1,0 +1,110 @@
+services:
+  api:
+    build: .
+    container_name: my_container
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthCheck:
+      test: ["CMD-SHELL","python-c \"import urllib.request.urlopen('http://localhost:8080/api/v1/health')\""]    
+      interval: 30s
+      timeout: 10s
+      retries: 4
+      start_period: 40s
+    env_file:
+      - .env
+    environement:
+      - OPENSEARCH_HOST = http://opensearch:9200
+      - OLLAMA_HOST = http://ollama:11434
+      - POSTGRES_DATABASE_URL=
+      - LANGFUSE_HOST=http://langfuse-web:3000   
+      - REDIS_HOST = redis
+    networks:
+      - rag-network
+    redis:
+      image: redis:7-alpine
+      container_name: rag-redis
+      ports:
+         -"6379:6379" 
+      volumes:
+         - redis-data:/data
+      command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+      healtCheck:
+        test: ["CMD", "redis-cli","ping"]
+        interval: 10s
+        timeout: 3s
+        retries: 5
+        start_period: 10s
+      restart: unless-stopped
+      networks:
+        - rag-network
+    opensearch:
+      image: opensearchproject/opensearch:2.19.0
+      container_name: rag-opensearch
+      environment:
+        - discovery.type=single-node
+        - OPENSEARCH_JAVA_OPTS=-Xms512m -Xms512m
+        - DISABLE_PLUGIN_SECURITY=true
+        - bootstrap.memory_lock=true
+      ports:
+         - "9200:9200"
+         - "9600:9600"
+      ulimits:
+        memLock:
+          soft: -1
+          hard: -1
+      volumes:
+         - opensearch_data:/usr/share/opensearch/data
+      healthCheck:
+        test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+        start_period: 40s
+      restart: unless-stopped
+      networks:
+        - rag-network            
+    opensearch-dashboards:
+      image: opensearchproject/opensearch-dashboards:2.19.0
+      container_name: rag-dashboards
+      ports:
+        - "5601:5601"
+      environment:
+        - OPENSEARCH_HOSTS=http://opensearch:9200
+        - DISABLE_SECURITY_DASHBOARDS_PLUGIN=true
+      depends_on:
+        - opensearch
+      healthCheck:
+        test: ["CMD-SHELL","curl -f http://localhost:5601/api/status  || exit 1"]
+        interval: 30s
+        timeout: 10s
+        retries: 4
+        start_period: 40s
+      networks:
+        - rag-networks
+    airflow:
+      build: 
+        context: ./airflow
+        dockerfile: Dockerfile
+      container_name: rag-airflow
+      depends_on:
+        postgre:
+        condition: service_healthy
+      env_file:
+        - .env  
+
+
+
+
+           
+
+
+
+
+
