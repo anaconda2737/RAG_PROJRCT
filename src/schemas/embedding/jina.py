@@ -2,7 +2,7 @@ from typing import Dict, List
 from pydantic import BaseModel
 
 
-class JinaEmbedding(BaseModel):
+class JinaEmbeddingRequest(BaseModel):
     model:str = "jina-embedding-v3"
     task:str = "retrieval-passage"
     dimension:int = 1024
