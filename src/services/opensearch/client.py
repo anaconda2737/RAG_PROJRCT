@@ -264,6 +264,40 @@ class OpenSearchClient:
             logger.error(f"Bulk chunk indexing error:{e}")
             raise
     def delete_paper_chunk(self,arxiv_id:str)->bool:
+        try:
+            response =  self.client.delete_by_query(
+                index = self.index_name, body ={"query":{"term":{"arxiv_id":arxiv_id}}}, refresh = True
+
+            )
+            deleted = response.get("deleted",0)
+            logger.info(f"Deleted {deleted} chunk for paper {arxiv_id}")
+            return deleted > 0
+
+        except Exception as e:
+            logger.error(f"Error deleting the chunk : {e}")
+            return False
+
+    def get_chunks_by_paper(self,arxiv_id:str)->List[Dict[str,Any]]:
+        try:
+            search_body = {
+                "query":{"term":{"arxiv_id": arxiv_id}},
+                "size": 1000,
+                "sort":[{"chunk_index":"asc"}],
+                "_source": {"excludes":["embedding"]},
+
+            }  
+            response = self.client.search(index =  self.index_name, body = search_body)
+            chunks = []
+            for hit in response["hits"]["hits"]:
+                chunk = hit["_source"]
+                chunk["chunk_id"] = hit["_id"]
+                chunks.append(chunk)
+
+            return chunks
+        except Exception as e :    
+            logger.error(f"Error getting chunks : {e}")
+            return []  
+    
             
 
 
