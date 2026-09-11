@@ -67,4 +67,19 @@ ARXIV_PAPERS_CHUNKS_MAPPING={
         }
     }
 }
+
+HYBRID_RRF_PIPELINE =  {
+    "id":"hybrid-rrf-pipeline",
+    "description": "Post processor for hybrid search",
+    "phase_results_processor":[
+        {
+            "score-ranker-processor":{
+                "combination":{
+                    "technique":"rrf",
+                    "rank_constant": 60
+                }
+            }
+        }
+    ]
+}
   
